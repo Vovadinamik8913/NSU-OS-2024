@@ -26,8 +26,7 @@ void add_file(cycle* cycle, int fd, char* filename) {
         exit(-1);
     }
     new_node->pfd.fd = fd;
-    new_node->pfd.events = PU-OS-2024/23213/v.abramenko/lab22$ ssh v.abramenko@ccfit.nsu.ru
-OLLIN;
+    new_node->pfd.events = POLLIN;
     new_node->filename = filename;
     new_node->next = new_node;
     new_node->prev = new_node;
@@ -120,7 +119,6 @@ int main(int argc, char** argv) {
             break;
         }
         printf("[%s]\n", cycle.current->filename);
-        
         struct termios original_tio;
         if (isatty(cycle.current->pfd.fd) != 0) {
             if (tcgetattr(cycle.current->pfd.fd, &original_tio) == -1) {
