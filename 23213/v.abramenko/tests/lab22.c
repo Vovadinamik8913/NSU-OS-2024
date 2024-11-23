@@ -75,6 +75,7 @@ void set_new_attr(int fd, struct termios* original_tio) {
 
     struct termios new_tio;
     new_tio = *original_tio;
+    new_tio.c_iflag |= ICRNL;
     new_tio.c_lflag |= ICANON;
     new_tio.c_lflag |= ECHO;
     if (tcsetattr(fd, TCSANOW, &new_tio) == -1) {
