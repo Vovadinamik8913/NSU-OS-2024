@@ -49,7 +49,7 @@ int main() {
 
     int cl;
     struct aiocb requests[MAX_CLIENTS];
-    const struct aiocb* view[] = {
+    struct aiocb* view[] = {
         &requests[0],
         &requests[1],
         &requests[2],
