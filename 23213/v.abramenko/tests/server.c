@@ -63,7 +63,7 @@ int main() {
     };
     int cnt_requests = 0;
     while (1) {
-        if (aio_suspeservernd(view, cnt_requests, NULL) == -1) {
+        if (aio_suspend(view, cnt_requests, NULL) == -1) {
             unlink(socket_path);
             perror("suspend failed");
             exit(-1);
