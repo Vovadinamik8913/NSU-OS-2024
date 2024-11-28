@@ -48,7 +48,8 @@ int main() {
     signal(SIGINT, handle_sigint);
 
     int cl;
-    struct aiocb requests[MAX_CLIENTS];
+    struct aiocb* requests[MAX_CLIENTS];
+    memset(requests, 0, sizeof(requests));
     int cnt_requests = 0;
     while (1) {
         if (aio_suspend(requests, cnt_requests, 0) == -1) {
@@ -66,16 +67,16 @@ int main() {
                     }
                     perror("return failed");
                 }
-                char* buf = (char*)requests[i].aio_buf;
+                char* buf = (char*)requests[i]->aio_buf;
                 free(buf);
-                close(requests[i].aio_fildes);
+                close(requests[i]->aio_fildes);
+                free(requests[i]);
                 requests[i] = requests[cnt_requests - 1];
-                requests[cnt_requests - 1].aio_fildes = 0;
-                requests[cnt_requests - 1].aio_buf = NULL;
+                requests[cnt_requests - 1] = NULL;
                 cnt_requests--;
                 i--;
             } else {
-                char* buf = (char*)requests[i].aio_buf;
+                char* buf = (char*)requests[i]->aio_buf;
                 buf[rc] = 0;
                 for (int j = 0; j < rc; j++) {
                     putchar(toupper((unsigned char)buf[j]));
@@ -89,12 +90,12 @@ int main() {
             perror("accept failed");
             continue;
         }
-
-        requests[cnt_requests].aio_fildes = cl;
-        requests[cnt_requests].aio_offset = 0;
-        requests[cnt_requests].aio_buf = malloc(BUF_SIZE);
-        requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
-        requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
+        requests[cnt_requests] = calloc(1, sizeof(struct aiocb));
+        requests[cnt_requests]->aio_fildes = cl;
+        requests[cnt_requests]->aio_offset = 0;
+        requests[cnt_requests]->aio_buf = malloc(BUF_SIZE);
+        requests[cnt_requests]->aio_nbytes = BUF_SIZE - 1;
+        requests[cnt_requests]->aio_sigevent.sigev_notify = SIGEV_NONE;
         aio_read(&requests[cnt_requests]);
         cnt_requests++;
     }
