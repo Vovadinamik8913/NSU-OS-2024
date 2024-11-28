@@ -51,13 +51,18 @@ int main() {
     struct aiocb requests[MAX_CLIENTS];
     int cnt_requests = 0;
     while (1) {
+        if (aio_suspend(requests, cnt_requests, 0) == -1) {
+            unlink(socket_path);
+            perror("suspend failed");
+            exit(-1);
+        }
         for (int i = 0; i < cnt_requests; i++) {
             ssize_t rc = aio_return(&requests[i]);
             if (rc <= 0) {
                 if(rc == -1) {
-                    if (errno == EINVAL) {
-                       aio_read(&requests[i]);
-                       continue;
+                    if (errno == EINPROGRESS) {
+                        aio_read(&requests[i]);
+                        continue;
                     }
                     perror("return failed");
                 }
