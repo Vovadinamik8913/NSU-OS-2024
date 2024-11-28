@@ -1,6 +1,5 @@
 #include <sys/socket.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/un.h>
@@ -57,7 +56,8 @@ int main() {
                 if (rc == -1) {
                     perror("return failed");
                 }
-                free(requests[i].aio_buf);
+                char* buf = (char*)requests[i].aio_buf;
+                free(buf);
                 close(requests[i].aio_fildes);
                 requests[i] = requests[cnt_requests - 1];
                 requests[cnt_requests - 1].aio_fildes = 0;
@@ -79,7 +79,7 @@ int main() {
             perror("accept failed");
             continue;
         }
-        
+
         requests[cnt_requests].aio_fildes = cl;
         requests[cnt_requests].aio_offset = 0;
         requests[cnt_requests].aio_buf = malloc(BUF_SIZE);
