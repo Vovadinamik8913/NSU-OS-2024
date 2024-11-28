@@ -49,9 +49,21 @@ int main() {
 
     int cl;
     struct aiocb requests[MAX_CLIENTS];
+    const struct aiocb* view[] = {
+        &requests[0],
+        &requests[1],
+        &requests[2],
+        &requests[3],
+        &requests[4],
+        &requests[5],
+        &requests[6],
+        &requests[7],
+        &requests[8],
+        &requests[9],
+    };
     int cnt_requests = 0;
     while (1) {
-        if (aio_suspend(requests, cnt_requests, NULL) == -1) {
+        if (aio_suspeservernd(view, cnt_requests, NULL) == -1) {
             unlink(socket_path);
             perror("suspend failed");
             exit(-1);
@@ -62,6 +74,7 @@ int main() {
                 if(rc == -1) {
                     if (errno == EINPROGRESS) {
                         aio_read(&requests[i]);
+                        continue;
                     }
                     perror("return failed");
                 }
