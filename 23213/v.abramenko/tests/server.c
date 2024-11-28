@@ -54,7 +54,11 @@ int main() {
         for (int i = 0; i < cnt_requests; i++) {
             ssize_t rc = aio_return(&requests[i]);
             if (rc <= 0) {
-                if (rc == -1) {
+                if(rc == -1) {
+                    if (errno == EINVAL) {
+                       aio_read(&requests[i]);
+                       continue;
+                    }
                     perror("return failed");
                 }
                 char* buf = (char*)requests[i].aio_buf;
