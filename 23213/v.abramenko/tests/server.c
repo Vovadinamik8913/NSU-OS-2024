@@ -1,4 +1,5 @@
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -9,7 +10,7 @@
 #include <aio.h>
 #include <signal.h>
 #include <setjmp.h>
-#include <siginfo.h>
+#include <sys/siginfo.h>
 
 #define MAX_CLIENTS 10
 #define BUF_SIZE 1024
@@ -21,18 +22,18 @@ void close_handler(int sig) {
 	_exit(0);
 }
 
-sigjmp_buf toexit;
+sigjmp_buf toprocess;
 struct aiocb* completed;
 
-void sigiohandler(int signo, siginfo_t* siginfo, void* context){
-    if (signo != SIGIO || siginfo.si_signo != SIGIO){
+void sigiohandler(int signo, siginfo_t* info, void* context){
+    if (signo != SIGIO || info->si_signo != SIGIO){
         return;
     }
 
-    struct aiocb *request = siginfo->si_value.sival_ptr;
+    struct aiocb *request = info->si_value.sival_ptr;
     if (aio_error(request) == 0) {
         completed = request;
-        siglongjmp(toexit, 1);
+        siglongjmp(toprocess, 1);
     }
 }
 
@@ -76,7 +77,7 @@ int main() {
 
     int cl;
     while (1) {
-        if (sigsetjmp(toexit, 1) == 1){
+        if (sigsetjmp(toprocess, 1) == 1){
             int rc = aio_return(completed);
             if (rc <= 0) {
                 if (rc == -1) {
