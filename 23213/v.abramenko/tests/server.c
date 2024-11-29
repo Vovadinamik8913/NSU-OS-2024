@@ -60,15 +60,8 @@ int main() {
         aio_suspend(info, cnt_requests, NULL);
         
         int rc = aio_return(&requests[0]);
-        if (rc == -1)
+        if (rc != -1)
         {
-            if (aio_error(info[0]) != EINPROGRESS)
-            {
-                perror("return failed");
-                unlink(socket_path);
-                exit(-1);
-            }
-        } else {
             int cl = accept(fd, NULL, NULL);
             if (cl == -1){
                 perror("accept failed");
