@@ -74,7 +74,7 @@ int main() {
         aio_suspend(info, cnt_requests, NULL);
         for (int i = 0; i < cnt_requests; i++)
         {
-            int rc = aio_return(info[i]);
+            int rc = aio_return(&requests[i]);
             if (rc == -1)
             {
                 if (aio_error(info[i]) == EINPROGRESS)
@@ -98,7 +98,7 @@ int main() {
                 for (int i = 0; i < rc; i++) {
                     putchar(toupper((unsigned char)buf[i]));
                 }
-                aio_read(info[i]);
+                aio_read(&requests[i]);
             }
         }
         
