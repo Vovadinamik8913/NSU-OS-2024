@@ -32,10 +32,15 @@ int main(int argc, char *argv[]) {
     char buf[BUF_SIZE];
     ssize_t bytes_read;
     while ((bytes_read = read(STDIN_FILENO, buf, sizeof(buf))) > 0) {
-        if (write(fd, buf, sizeof(buf)) == -1) {
-            perror("write");
-            close(fd);
-            exit(-1);
+        ssize_t bytes_written = 0;
+        while (bytes_written < bytes_read) {
+            ssize_t rc = write(fd, buf + bytes_written, bytes_read - bytes_written);
+            if (rc == -1) {
+                perror("write failed");
+                close(fd);
+                exit(-1);
+            }
+            bytes_written += rc;
         }
     }
 

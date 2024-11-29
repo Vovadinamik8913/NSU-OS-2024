@@ -98,6 +98,7 @@ int main() {
                 for (int i = 0; i < rc; i++) {
                     putchar(toupper((unsigned char)buf[i]));
                 }
+                putchar('\n');
                 aio_read(&requests[i]);
             }
         }
