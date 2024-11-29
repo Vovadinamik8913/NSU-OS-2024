@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <aio.h>
+#include <fcntl.h>
 
 #define MAX_CLIENTS 10
 #define BUF_SIZE 1024
@@ -47,55 +48,33 @@ int main() {
 
     signal(SIGINT, handle_sigint);
 
-    struct aiocb requests[MAX_CLIENTS + 1];
+    int flags = fcntl(fd, F_GETFL, 0);
+    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+
+    struct aiocb requests[MAX_CLIENTS];
     memset(requests, 0, sizeof(requests));
     const struct aiocb* info[MAX_CLIENTS];
-    for (int i = 0; i < MAX_CLIENTS + 1; i++) {
+    for (int i = 0; i < MAX_CLIENTS; i++) {
         info[i] = &requests[i];
     }
-    int cnt_requests = 1;
-
-    requests[0].aio_fildes = fd;
+    int cnt_requests = 0;
     while (1) {
         aio_suspend(info, cnt_requests, NULL);
         
-        int rc = aio_return(&requests[0]);
-        if (rc == -1)
-        {
-            if (aio_error(info[0]) != EINVAL)
-            {
-                perror("return failed");
-                unlink(socket_path);
-                exit(-1);
-            }
-            int cl = accept(fd, NULL, NULL);
-            if (cl == -1){
-                perror("accept failed");
-            } else {
-                requests[cnt_requests].aio_fildes = cl;
-                requests[cnt_requests].aio_offset = 0;
-                requests[cnt_requests].aio_buf = malloc(BUF_SIZE * sizeof(char));
-                requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
-                requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
-                aio_read(&requests[cnt_requests]);
-                cnt_requests++;
-            }
+        int cl = accept(fd, NULL, NULL);
+        if (cl == -1){
+            perror("accept failed");
         } else {
-            int cl = accept(fd, NULL, NULL);
-            if (cl == -1){
-                perror("accept failed");
-            } else {
-                requests[cnt_requests].aio_fildes = cl;
-                requests[cnt_requests].aio_offset = 0;
-                requests[cnt_requests].aio_buf = malloc(BUF_SIZE * sizeof(char));
-                requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
-                requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
-                aio_read(&requests[cnt_requests]);
-                cnt_requests++;
-            }
+            requests[cnt_requests].aio_fildes = cl;
+            requests[cnt_requests].aio_offset = 0;
+            requests[cnt_requests].aio_buf = malloc(BUF_SIZE * sizeof(char));
+            requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
+            requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
+            aio_read(&requests[cnt_requests]);
+            cnt_requests++;
         }
         
-        for (int i = 1; i < cnt_requests; i++)
+        for (int i = 0; i < cnt_requests; i++)
         {
             int rc = aio_return(&requests[i]);
             if (rc == -1)
@@ -116,7 +95,7 @@ int main() {
                 i--;
             } else {
                 char* buf = (char*) requests[i].aio_buf;
-                buf[rc] = '\0';
+                buf[rc] = 0;
                 for (int j = 0; j < rc; j++) {
                     putchar(toupper((unsigned char)buf[j]));
                 }
