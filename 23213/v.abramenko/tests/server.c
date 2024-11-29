@@ -56,13 +56,19 @@ int main() {
     int cnt_requests = 1;
 
     requests[0].aio_fildes = fd;
-    aio_read(&requests[0]);
     while (1) {
         aio_suspend(info, cnt_requests, NULL);
         
         int rc = aio_return(&requests[0]);
-        if (rc != -1)
+        if (rc == -1)
         {
+            if (aio_error(info[0]) != EINPROGRESS)
+            {
+                perror("return failed");
+                unlink(socket_path);
+                exit(-1);
+            }
+        } else {
             int cl = accept(fd, NULL, NULL);
             if (cl == -1){
                 perror("accept failed");
