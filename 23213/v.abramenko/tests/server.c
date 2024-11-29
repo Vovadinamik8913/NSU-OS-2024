@@ -9,7 +9,6 @@
 #include <aio.h>
 #include <signal.h>
 #include <setjmp.h>
-#include <siginfo.h>
 
 #define MAX_CLIENTS 10
 #define BUF_SIZE 1024
@@ -47,7 +46,7 @@ void sigiohandler(int signo, siginfo_t* siginfo, void* context){
             }
             aio_read(request);
         }
-        siglongjmp(toexit, 1);
+        siglongjmp(&toexit, 1);
     }
 }
 
@@ -84,7 +83,7 @@ int main() {
     sigemptyset(&sigiohandleraction.sa_mask);
     sigaddset(&sigiohandleraction.sa_mask, SIGIO);
 
-    sigiohandleraction.sa_sigaction = SIGIO_handler;
+    sigiohandleraction.sa_sigaction = sigiohandler;
     sigiohandleraction.sa_flags = SA_SIGINFO;
     sigaction(SIGIO, &sigiohandleraction, NULL);
 
@@ -98,10 +97,10 @@ int main() {
         struct aiocb* request = malloc(sizeof(struct aiocb));
         request->aio_fildes = cl;
         request->aio_offset = 0;
-        requests->aio_buf = malloc(BUF_SIZE * sizeof(char));
-        requests->aio_nbytes = BUF_SIZE - 1;
-        requests->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-        requests->aio_sigevent.sigev_signo = SIGIO;
+        request->aio_buf = malloc(BUF_SIZE * sizeof(char));
+        request->aio_nbytes = BUF_SIZE - 1;
+        request->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
+        request->aio_sigevent.sigev_signo = SIGIO;
         aio_read(request);
     }
 }
