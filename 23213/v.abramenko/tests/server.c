@@ -30,9 +30,9 @@ void sigiohandler(int signo, siginfo_t* info, void* context){
         return;
     }
 
-    struct aiocb *request = info->si_value.sival_ptr;
-    if (aio_error(request) == 0) {
-        completed = request;
+    struct aiocb* req = (struct aiocb*)info->si_value.sival_ptr;
+    if (aio_error(req) == 0) {
+        completed = req;
         siglongjmp(toprocess, 1);
     }
 }
@@ -102,13 +102,14 @@ int main() {
             perror("accept failed");
             continue;
         }
-        struct aiocb* request = malloc(sizeof(struct aiocb));
-        request->aio_fildes = cl;
-        request->aio_offset = 0;
-        request->aio_buf = malloc(BUF_SIZE * sizeof(char));
-        request->aio_nbytes = BUF_SIZE - 1;
-        request->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
-        request->aio_sigevent.sigev_signo = SIGIO;
-        aio_read(request);
+        struct aiocb* req = malloc(sizeof(struct aiocb));
+        req->aio_fildes = cl;
+        req->aio_offset = 0;
+        req->aio_buf = malloc(BUF_SIZE * sizeof(char));
+        req->aio_nbytes = BUF_SIZE - 1;
+        req->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
+        req->aio_sigevent.sigev_signo = SIGIO;
+        req->aio_sigevent.sigev_value.sival_ptr = req;
+        aio_read(req);
     }
 }
