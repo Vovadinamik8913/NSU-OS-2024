@@ -58,7 +58,6 @@ int main() {
         int cl = accept(fd, NULL, NULL);
         if (cl == -1){
             perror("accept failed");
-            continue;
         } else {
             requests[cnt_requests].aio_fildes = cl;
             requests[cnt_requests].aio_offset = 0;
@@ -71,6 +70,10 @@ int main() {
         
     
         if (aio_suspend(view, cnt_requests, NULL) == -1) {
+            if (errno = EINPROGRESS)
+            {
+                continue;
+            }
             unlink(socket_path);
             perror("suspend failed");
             exit(-1);
