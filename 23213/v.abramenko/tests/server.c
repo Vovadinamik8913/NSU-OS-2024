@@ -15,7 +15,7 @@
 #define MAX_CLIENTS 10
 #define BUF_SIZE 1024
 
-char *socket_path = "./socket";
+char* socket_path = "./socket";
 
 void close_handler(int sig) {
 	unlink(socket_path);
