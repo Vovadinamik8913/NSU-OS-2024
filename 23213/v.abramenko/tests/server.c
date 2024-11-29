@@ -70,7 +70,7 @@ int main() {
         
     
         if (aio_suspend(view, cnt_requests, NULL) == -1) {
-            if (errno = EINPROGRESS)
+            if (errno == EINPROGRESS)
             {
                 continue;
             }
