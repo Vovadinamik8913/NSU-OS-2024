@@ -64,7 +64,7 @@ int main() {
         } else {
             requests[cnt_requests].aio_fildes = cl;
             requests[cnt_requests].aio_offset = 0;
-            requests[cnt_requests].aio_buf = malloc(BUF_SIZE);
+            requests[cnt_requests].aio_buf = malloc(BUF_SIZE * sizeof(char));
             requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
             requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
             aio_read(&requests[cnt_requests]);
