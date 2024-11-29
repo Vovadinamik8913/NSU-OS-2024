@@ -47,14 +47,12 @@ int main() {
 
     signal(SIGINT, handle_sigint);
 
-    int cl;
     struct aiocb requests[MAX_CLIENTS];
     memset(requests, 0, sizeof(requests));
     const struct aiocb* info[MAX_CLIENTS];
     for (int i = 0; i < MAX_CLIENTS; i++) {
         info[i] = &requests[i];
     }
-    
     int cnt_requests = 0;
     while (1) {
         int cl = accept(fd, NULL, NULL);
@@ -82,7 +80,6 @@ int main() {
                     continue;
                 }
                 perror("return failed");
-
             } else if (rc == 0) {
                 char* buffer = (char*) info[i]->aio_buf;
                 free(buffer);
@@ -95,10 +92,9 @@ int main() {
             } else {
                 char* buf = (char*) requests[i].aio_buf;
                 buf[rc] = '\0';
-                for (int i = 0; i < rc; i++) {
-                    putchar(toupper((unsigned char)buf[i]));
+                for (int j = 0; j < rc; j++) {
+                    putchar(toupper((unsigned char)buf[j]));
                 }
-                putchar('\n');
                 aio_read(&requests[i]);
             }
         }
