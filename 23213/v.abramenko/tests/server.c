@@ -69,15 +69,7 @@ int main() {
         }
         
     
-        if (aio_suspend(view, cnt_requests, NULL) == -1) {
-            if (errno == EINPROGRESS)
-            {
-                continue;
-            }
-            unlink(socket_path);
-            perror("suspend failed");
-            exit(-1);
-        }
+        aio_suspend(view, cnt_requests, NULL) == -1);
         for (int i = 0; i < cnt_requests; i++) {
             ssize_t rc = aio_return(&requests[i]);
             if (rc <= 0) {
