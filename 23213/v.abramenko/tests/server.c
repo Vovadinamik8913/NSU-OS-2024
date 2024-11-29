@@ -1,24 +1,56 @@
 #include <sys/socket.h>
+#include <sys/un.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/un.h>
 #include <ctype.h>
 #include <errno.h>
-#include <signal.h>
 #include <aio.h>
-#include <fcntl.h>
+#include <signal.h>
+#include <setjmp.h>
+#include <siginfo.h>
 
 #define MAX_CLIENTS 10
 #define BUF_SIZE 1024
 
 char *socket_path = "./socket";
 
-void handle_sigint(int sig) {
+void close_handler(int sig) {
 	unlink(socket_path);
 	_exit(0);
 }
+
+struct sigjmp_buf toexit;
+
+void sigiohandler(int signo, siginfo_t* siginfo, void* context){
+    if (signo != SIGIO || siginfo.si_signo != SIGIO){
+        return;
+    }
+
+    struct aiocb *request = siginfo->si_value.sival_ptr;
+    if (aio_error(request) == 0){
+        int rc = aio_return(request);
+        if (rc <= 0) {
+            if (rc == -1) {
+                perror("return failed");
+            }
+            char* buffer = (char*) request->aio_buf;
+            free(buffer);
+            close(request->aio_fildes);
+            free(request);
+        } else {
+            char* buf = (char*) request->aio_buf;
+            buf[rc] = 0;
+            for (int j = 0; j < rc; j++) {
+                putchar(toupper((unsigned char)buf[j]));
+            }
+            aio_read(request);
+        }
+        siglongjmp(toexit, 1);
+    }
+}
+
 
 int main() {
     struct sockaddr_un addr;
@@ -46,62 +78,30 @@ int main() {
         exit(-1);
     }
 
-    signal(SIGINT, handle_sigint);
+    signal(SIGINT, close_handler);
 
-    int flags = fcntl(fd, F_GETFL, 0);
-    fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+    struct sigaction sigiohandleraction;
+    sigemptyset(&sigiohandleraction.sa_mask);
+    sigaddset(&sigiohandleraction.sa_mask, SIGIO);
 
-    struct aiocb requests[MAX_CLIENTS];
-    memset(requests, 0, sizeof(requests));
-    const struct aiocb* info[MAX_CLIENTS];
-    for (int i = 0; i < MAX_CLIENTS; i++) {
-        info[i] = &requests[i];
-    }
-    int cnt_requests = 0;
+    sigiohandleraction.sa_sigaction = SIGIO_handler;
+    sigiohandleraction.sa_flags = SA_SIGINFO;
+    sigaction(SIGIO, &sigiohandleraction, NULL);
+
+
+    int cl;
     while (1) {
-        aio_suspend(info, cnt_requests, NULL);
-        
-        int cl = accept(fd, NULL, NULL);
-        if (cl == -1){
+        if ((cl = accept(fd, NULL, NULL)) == -1){
             perror("accept failed");
-        } else {
-            requests[cnt_requests].aio_fildes = cl;
-            requests[cnt_requests].aio_offset = 0;
-            requests[cnt_requests].aio_buf = malloc(BUF_SIZE * sizeof(char));
-            requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
-            requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
-            aio_read(&requests[cnt_requests]);
-            cnt_requests++;
+            continue;
         }
-        
-        for (int i = 0; i < cnt_requests; i++)
-        {
-            int rc = aio_return(&requests[i]);
-            if (rc == -1)
-            {
-                if (aio_error(info[i]) == EINPROGRESS)
-                {
-                    continue;
-                }
-                perror("return failed");
-            } else if (rc == 0) {
-                char* buffer = (char*) info[i]->aio_buf;
-                free(buffer);
-                close(info[i]->aio_fildes);
-                requests[i] = requests[cnt_requests - 1];
-                requests[cnt_requests - 1].aio_fildes = -1;
-                requests[cnt_requests - 1].aio_buf = NULL;
-                cnt_requests--;
-                i--;
-            } else {
-                char* buf = (char*) requests[i].aio_buf;
-                buf[rc] = 0;
-                for (int j = 0; j < rc; j++) {
-                    putchar(toupper((unsigned char)buf[j]));
-                }
-                aio_read(&requests[i]);
-            }
-        }
-        
+        struct aiocb* request = malloc(sizeof(struct aiocb));
+        request->aio_fildes = cl;
+        request->aio_offset = 0;
+        requests->aio_buf = malloc(BUF_SIZE * sizeof(char));
+        requests->aio_nbytes = BUF_SIZE - 1;
+        requests->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
+        requests->aio_sigevent.sigev_signo = SIGIO;
+        aio_read(request);
     }
 }
