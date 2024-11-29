@@ -1,4 +1,5 @@
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <sys/un.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,7 +21,7 @@ void close_handler(int sig) {
 	_exit(0);
 }
 
-struct sigjmp_buf toexit;
+sigjmp_buf toexit;
 
 void sigiohandler(int signo, siginfo_t* siginfo, void* context){
     if (signo != SIGIO || siginfo.si_signo != SIGIO){
@@ -46,7 +47,7 @@ void sigiohandler(int signo, siginfo_t* siginfo, void* context){
             }
             aio_read(request);
         }
-        siglongjmp(&toexit, 1);
+        siglongjmp(toexit, 1);
     }
 }
 
