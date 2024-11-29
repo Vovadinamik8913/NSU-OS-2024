@@ -62,7 +62,7 @@ int main() {
         int rc = aio_return(&requests[0]);
         if (rc == -1)
         {
-            if (aio_error(info[0]) != EINPROGRESS)
+            if (aio_error(info[0]) != EINVAL)
             {
                 perror("return failed");
                 unlink(socket_path);
