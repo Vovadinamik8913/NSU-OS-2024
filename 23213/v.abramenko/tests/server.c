@@ -56,6 +56,7 @@ int main() {
     int cnt_requests = 1;
 
     requests[0].aio_fildes = fd;
+    aio_read(&requests[0]);
     while (1) {
         aio_suspend(info, cnt_requests, NULL);
         
