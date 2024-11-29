@@ -1,5 +1,4 @@
 #include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/un.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -22,6 +21,7 @@ void close_handler(int sig) {
 }
 
 sigjmp_buf toexit;
+struct aiocb* completed;
 
 void sigiohandler(int signo, siginfo_t* siginfo, void* context){
     if (signo != SIGIO || siginfo.si_signo != SIGIO){
@@ -29,24 +29,8 @@ void sigiohandler(int signo, siginfo_t* siginfo, void* context){
     }
 
     struct aiocb *request = siginfo->si_value.sival_ptr;
-    if (aio_error(request) == 0){
-        int rc = aio_return(request);
-        if (rc <= 0) {
-            if (rc == -1) {
-                perror("return failed");
-            }
-            char* buffer = (char*) request->aio_buf;
-            free(buffer);
-            close(request->aio_fildes);
-            free(request);
-        } else {
-            char* buf = (char*) request->aio_buf;
-            buf[rc] = 0;
-            for (int j = 0; j < rc; j++) {
-                putchar(toupper((unsigned char)buf[j]));
-            }
-            aio_read(request);
-        }
+    if (aio_error(request) == 0) {
+        completed = request;
         siglongjmp(toexit, 1);
     }
 }
@@ -91,6 +75,27 @@ int main() {
 
     int cl;
     while (1) {
+        if (sigsetjmp(toexit, 1) == 1){
+            int rc = aio_return(completed);
+            if (rc <= 0) {
+                if (rc == -1) {
+                    perror("return failed");
+                }
+                char* buffer = (char*)completed->aio_buf;
+                free(buffer);
+                close(completed->aio_fildes);
+                free(completed);
+            } else {
+                char* buf = (char*)completed->aio_buf;
+                buf[rc] = 0;
+                for (int j = 0; j < rc; j++) {
+                    putchar(toupper((unsigned char)buf[j]));
+                }
+                aio_read(completed);
+            }
+        }
+
+
         if ((cl = accept(fd, NULL, NULL)) == -1){
             perror("accept failed");
             continue;
