@@ -9,6 +9,7 @@
 #include <aio.h>
 #include <signal.h>
 #include <setjmp.h>
+#include <siginfo.h>
 
 #define MAX_CLIENTS 10
 #define BUF_SIZE 1024
