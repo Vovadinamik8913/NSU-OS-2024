@@ -56,7 +56,7 @@ int main() {
     int cnt_requests = 0;
     while (1) {
         int cl = accept(fd, NULL, NULL);
-
+        printf("acc\n");
         if (cl == -1){
             perror("accept failed");
         } else {
@@ -70,6 +70,7 @@ int main() {
         }
 
         aio_suspend(info, cnt_requests, NULL);
+        printf("sus\n");
         for (int i = 0; i < cnt_requests; i++)
         {
             int rc = aio_return(&requests[i]);
