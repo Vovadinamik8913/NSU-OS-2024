@@ -60,10 +60,26 @@ int main() {
         aio_suspend(info, cnt_requests, NULL);
         
         int rc = aio_return(&requests[0]);
-        if (aio_error(info[0]) != EINVAL) {
-            perror("return failed");
-            unlink(socket_path);
-            exit(-1);
+        if (rc == -1)
+        {
+            if (aio_error(info[0]) != EINVAL)
+            {
+                perror("return failed");
+                unlink(socket_path);
+                exit(-1);
+            }
+            int cl = accept(fd, NULL, NULL);
+            if (cl == -1){
+                perror("accept failed");
+            } else {
+                requests[cnt_requests].aio_fildes = cl;
+                requests[cnt_requests].aio_offset = 0;
+                requests[cnt_requests].aio_buf = malloc(BUF_SIZE * sizeof(char));
+                requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
+                requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
+                aio_read(&requests[cnt_requests]);
+                cnt_requests++;
+            }
         } else {
             int cl = accept(fd, NULL, NULL);
             if (cl == -1){
