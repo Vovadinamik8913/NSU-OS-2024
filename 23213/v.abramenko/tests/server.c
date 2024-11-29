@@ -49,20 +49,27 @@ int main() {
 
     int cl;
     struct aiocb requests[MAX_CLIENTS];
-    struct aiocb* view[] = {
-        &requests[0],
-        &requests[1],
-        &requests[2],
-        &requests[3],
-        &requests[4],
-        &requests[5],
-        &requests[6],
-        &requests[7],
-        &requests[8],
-        &requests[9],
-    };
+    const struct aiocb* view[MAX_CLIENTS];
+    for (int i = 0; i < MAX_CLIENTS; i++) {
+        view[i] = &requests[i];
+    }
     int cnt_requests = 0;
     while (1) {
+        int cl = accept(fd, NULL, NULL);
+        if (cl == -1){
+            perror("accept failed");
+            continue;
+        } else {
+            requests[cnt_requests].aio_fildes = cl;
+            requests[cnt_requests].aio_offset = 0;
+            requests[cnt_requests].aio_buf = malloc(BUF_SIZE);
+            requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
+            requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
+            aio_read(&requests[cnt_requests]);
+            cnt_requests++;
+        }
+        
+    
         if (aio_suspend(view, cnt_requests, NULL) == -1) {
             unlink(socket_path);
             perror("suspend failed");
@@ -82,7 +89,7 @@ int main() {
                 free(buf);
                 close(requests[i].aio_fildes);
                 requests[i] = requests[cnt_requests - 1];
-                requests[cnt_requests - 1].aio_fildes = 0;
+                requests[cnt_requests - 1].aio_fildes = -1;
                 requests[cnt_requests - 1].aio_buf = NULL;
                 cnt_requests--;
                 i--;
@@ -97,17 +104,6 @@ int main() {
         }
         
 
-        if ((cl = accept(fd, NULL, NULL)) == -1){
-            perror("accept failed");
-            continue;
-        }
-
-        requests[cnt_requests].aio_fildes = cl;
-        requests[cnt_requests].aio_offset = 0;
-        requests[cnt_requests].aio_buf = malloc(BUF_SIZE);
-        requests[cnt_requests].aio_nbytes = BUF_SIZE - 1;
-        requests[cnt_requests].aio_sigevent.sigev_notify = SIGEV_NONE;
-        aio_read(&requests[cnt_requests]);
-        cnt_requests++;
+        
     }
 }
