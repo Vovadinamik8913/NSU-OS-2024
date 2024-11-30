@@ -93,7 +93,13 @@ int main() {
                 for (int j = 0; j < rc; j++) {
                     putchar(toupper((unsigned char)buf[j]));
                 }
-                aio_read(completed);
+
+                if (aio_read(completed) == -1) {
+                    char* buffer = (char*)completed->aio_buf;
+                    free(buffer);
+                    close(completed->aio_fildes);
+                    free(completed);
+                }
             }
         }
 
@@ -102,14 +108,30 @@ int main() {
             perror("accept failed");
             continue;
         }
+
+        
         struct aiocb* req = malloc(sizeof(struct aiocb));
+        if (req == NULL) {
+            perror("malloc failed");
+            close(cl);
+            continue;
+        }
         req->aio_fildes = cl;
         req->aio_offset = 0;
         req->aio_buf = malloc(BUF_SIZE * sizeof(char));
+        if (req->aio_buf == NULL) {
+            perror("malloc failed");
+            close(cl);
+            continue;
+        }
         req->aio_nbytes = BUF_SIZE - 1;
         req->aio_sigevent.sigev_notify = SIGEV_SIGNAL;
         req->aio_sigevent.sigev_signo = SIGIO;
         req->aio_sigevent.sigev_value.sival_ptr = req;
-        aio_read(req);
+        if (aio_read(req) == -1) {
+            perror("aio_read failed");
+            close(cl);
+            continue;
+        }
     }
 }
