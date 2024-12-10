@@ -28,6 +28,8 @@ int main() {
         exit(-1);
     }
 
+    chmod(socket_path, 0644);
+
     if (listen(fd, 1) == -1) {
         perror("listen failed");
         unlink(socket_path);
@@ -43,8 +45,7 @@ int main() {
             continue;
         }
         unlink(socket_path);
-        while ((rc = read(cl, buf, sizeof(buf) - 1)) > 0) {
-            buf[rc] = '\0';
+        while ((rc = read(cl, buf, sizeof(buf))) > 0) {
             for (int i = 0; i < rc; i++) {
                 putchar(toupper((unsigned char)buf[i]));
             }
