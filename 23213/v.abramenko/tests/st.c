@@ -1,67 +1,110 @@
-#include <stdio.h>
-#include <unistd.h>
-#include <sys/socket.h>
-#include <sys/un.h>
-#include <signal.h>
-#include <stdlib.h>
-#include <string.h>
 #include <ctype.h>
-#include <errno.h>
+#include <signal.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <stdlib.h>
+#include <unistd.h>
 
-#define BATCHSIZE 1024
+#define BACKlOG 100
+#define BATCH_SIZE 1024
 
 char* socket_path = "./socket";
 
-int main(int argc, char* argv[]) {
-    int server_socket, client_socket;
-    char buffer[BATCHSIZE] = "";
-    struct sockaddr_un addr;
+void handle_sigint(int sig) {
+	unlink(socket_path);
+	_exit(EXIT_SUCCESS);
+}
 
-    server_socket = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (server_socket == -1){
-        perror("socket error");
-        return 1;
-    }
+int create_server_socket(void) {
+	int sock;
+	struct sockaddr_un addr;
 
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path)-1);
+	if((sock = socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
+		perror("Failed to create socket");
+		exit(EXIT_FAILURE);
+	}
 
-    if (bind(server_socket, (struct sockaddr*) &addr, sizeof(addr)) == -1) {
-        perror("bind error");
-        close(server_socket);
-        return 1;
-    }
+	memset(&addr, 0, sizeof(addr));
+	addr.sun_family = AF_UNIX;
+	strncpy(addr.sun_path, socket_path, sizeof(addr.sun_path)-1);
 
-    if (listen(server_socket, 1) == -1) {
-        perror("listen error");
-        close(server_socket);
-        unlink(socket_path);
-        return 1;
-    }
-    client_socket = accept(server_socket, NULL, NULL);
-    if (client_socket == -1) {
-        perror("accept error");
-        close(server_socket);
-        unlink(socket_path);
-        return 1;
-    }
+	if(bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == -1) {
+		perror("Failed to bind()");
+		exit(EXIT_FAILURE);
+	} 
 
-    ssize_t read_bytes = 0;
-    while ((read_bytes = read(client_socket, buffer, BATCHSIZE)) > 0) {
-        for (int i=0; i < read_bytes; i++) {
-            printf("%c", toupper(buffer[i]));
-        }
-    }
-    if (read_bytes == -1) {
-        perror("read error");
-        close(client_socket);
-        close(server_socket);
-        unlink(socket_path);
-        return 1;
-    }
-    close(client_socket);
-    close(server_socket);
-    unlink(socket_path);
-    return 0;
+	if (listen(sock, BACKlOG) == -1) {
+		perror("listen failed");
+		unlink(socket_path);
+		exit(EXIT_FAILURE);
+	}
+
+	printf("Server Socket registered as listening!\n");
+
+	return sock;
+}
+
+void accept_new_client(int server_sock, fd_set* active_fds, int* max_fd) {
+	int client_sock = accept(server_sock, NULL, NULL);
+	if (client_sock == -1) {
+		perror("Failed to accept()");
+	} else {
+		FD_SET(client_sock, active_fds);
+		if (client_sock > *max_fd) *max_fd = client_sock;
+	}
+}
+
+void handle_client(int client_sock, fd_set* active_fds) {
+	char buffer[BATCH_SIZE];
+	ssize_t read_bytes = read(client_sock, buffer, sizeof(buffer));
+
+	if (read_bytes > 0) {
+		for (int i = 0; i < read_bytes; i++) {
+			putchar(toupper(buffer[i]));
+		}
+	} else if (read_bytes == 0) {
+		close(client_sock);
+		FD_CLR(client_sock, active_fds);
+	} else {
+		perror("read() from client socket failed");
+		close(client_sock);
+		FD_CLR(client_sock, active_fds);
+	}
+}
+
+int main(void) {
+	int max_fd;
+	fd_set active_fds, read_fds;
+	FD_ZERO(&active_fds);
+
+	int sock = create_server_socket();
+	FD_SET(sock, &active_fds);
+	max_fd = sock;
+
+	signal(SIGINT, handle_sigint);
+
+	while(1) {
+		read_fds = active_fds;
+
+		int selected_fds = select(max_fd + 1, &read_fds, NULL, NULL, NULL);
+		if (selected_fds == -1) {
+			perror("select() failed");
+			unlink(socket_path);
+			exit(EXIT_FAILURE);
+		}
+
+		for (int i = 0, checked = 0; i <= max_fd && checked < selected_fds; i++) {
+			if (FD_ISSET(i, &read_fds)) {
+				checked++;
+				if (i == sock) {
+					accept_new_client(sock, &active_fds, &max_fd);
+				} else {
+					handle_client(i, &active_fds);
+				}
+			} 
+		} 
+	}
 }
