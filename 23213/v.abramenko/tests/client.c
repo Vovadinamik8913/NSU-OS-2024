@@ -7,7 +7,7 @@
 #include <sys/un.h>
 
 #define BUF_SIZE 1024
-char* socket_path = "socket";
+char* socket_path = "./socket";
 
 int main(void) {
     struct sockaddr_un addr;
