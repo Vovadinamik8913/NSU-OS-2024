@@ -1,4 +1,5 @@
 #include <sys/socket.h>
+#include <sys/types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +29,7 @@ int main() {
         exit(-1);
     }
 
-    chmod(socket_path, 0644);
+    chmod(socket_path, 0666);
 
     if (listen(fd, 1) == -1) {
         perror("listen failed");
