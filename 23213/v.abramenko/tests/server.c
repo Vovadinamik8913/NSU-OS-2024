@@ -29,12 +29,6 @@ int main() {
         exit(-1);
     }
 
-    if (chmod(socket_path, 0666) == -1) {
-        perror("chmod failed");
-        unlink(socket_path);
-        exit(-1);
-    }
-
     if (listen(fd, 0) == -1) {
         perror("listen failed");
         unlink(socket_path);
