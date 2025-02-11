@@ -1,10 +1,3 @@
-/* 
- * File:   pthread_create.c
- * Author: Dmitry V Irtegov
- *
- * Created on March 9, 2007, 11:32 AM
- */
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -20,7 +13,7 @@ void* thread_body(void* param) {
 
 void my_perror(int code, int argc, char **argv) {
     char buf[256];
-    strerror_r(code, buf, sizeof buf);
+    strerror_r(code, buf, sizeof(buf));
     fprintf(stderr, "%s: creating thread: %s\n", argv[0], buf);
 }
 
@@ -52,6 +45,5 @@ int main(int argc, char *argv[]) {
         exit(-1);
     }
     printf("Parent\n");
-    pthread_exit(NULL);   
-    return 0;
+    pthread_exit(NULL);
 }

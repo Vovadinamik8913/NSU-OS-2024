@@ -15,9 +15,8 @@ int main(int argc, char *argv[]) {
     int code;
 
     if ((code = pthread_create(&thread, NULL, thread_body, NULL)) !=0) {
-        char buf[256];
-        strerror_r(code, buf, sizeof buf);
-        fprintf(stderr, "%s: creating thread: %s\n", argv[0], buf);
+        char* buf = strerror(code);
+        fprintf(stderr, "%s: creating: %s\n", argv[0], buf);
         exit(-1);
     }
     
@@ -25,6 +24,5 @@ int main(int argc, char *argv[]) {
         printf("Parent\n");
     }
 
-    pthread_exit(NULL);   
-    return 0;
+    pthread_exit(NULL);
 }

@@ -13,7 +13,7 @@ void* thread_body(void* param) {
     pthread_cleanup_push(cancel_handler, (void*)"We are being cancelled!!!");
     
     while (1) {
-        write(0, "Child\n", 6);
+        write(1, "Child\n", 6);
     }
 
     pthread_cleanup_pop(0);
@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
     
     if ((code=pthread_create(&thread, NULL, thread_body, NULL))!=0) {
         char buf[256];
-        strerror_r(code, buf, sizeof buf);
+        strerror_r(code, buf, sizeof(buf));
         fprintf(stderr, "%s: creating thread: %s\n", argv[0], buf);
         exit(-1);
     }
@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     printf("Trying to cancel\n");
     if ((code=pthread_cancel(thread))!=0) {
         char buf[256];
-        strerror_r(code, buf, sizeof buf);
+        strerror_r(code, buf, sizeof(buf));
         fprintf(stderr, "%s: cancelling thread: %s\n", argv[0], buf);
         exit(-1);
     }
@@ -44,6 +44,5 @@ int main(int argc, char *argv[]) {
     pthread_join(thread, NULL);
     printf("Cancelled\n");
     
-    pthread_exit(NULL);   
-    return 0;
+    pthread_exit(NULL);
 }
