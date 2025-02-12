@@ -21,18 +21,20 @@ void handle_sigint(int sig) {
     stop_calc = 1;
 }
 
-void mutex_lock_checked(pthread_mutex_t *m) {
+void mutex_lock_checked(pthread_mutex_t *m, sigset_t* old) {
     int rc;
     if ((rc = pthread_mutex_lock(m)) != 0) {
         fprintf(stderr, "Mutex lock failed: %s\n", strerror(rc));
+        pthread_sigmask(SIG_UNBLOCK, &old, NULL);
         pthread_exit(NULL);
     }
 }
 
-void mutex_unlock_checked(pthread_mutex_t *m) {
+void mutex_unlock_checked(pthread_mutex_t *m, sigset_t* old) {
     int rc;
     if ((rc = pthread_mutex_unlock(m)) != 0) {
         fprintf(stderr, "Mutex unlock failed: %s\n", strerror(rc));
+        pthread_sigmask(SIG_UNBLOCK, &old, NULL);
         pthread_exit(NULL);
     }
 }
@@ -61,11 +63,11 @@ void* calculate(void* param) {
             if (longest_iteration <= j && stop_calc)
             {
                 data->iterations = j;
-                mutex_unlock_checked(&mutex);
+                mutex_unlock_checked(&mutex, &old);
                 pthread_sigmask(SIG_UNBLOCK, &old, NULL);
                 pthread_exit(data);
             }
-            mutex_unlock_checked(&mutex);
+            mutex_unlock_checked(&mutex, &old);
         }
     }
 }
@@ -95,8 +97,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < nthreads && flag; i++) {
         data[i].index = i;
         if ((code= pthread_create(&ids[i], NULL, calculate, data + i)) != 0) {
-            char* buf = strerror(code);
-            fprintf(stderr, "%d: creating: %s\n", i, buf);
+            fprintf(stderr, "%d: creating: %s\n", i, strerror(code));
             flag = 0;
         }
     }
@@ -105,8 +106,7 @@ int main(int argc, char** argv) {
     for (int i = 0; i < nthreads && flag; i++) {
         thread_data* res;
         if ((code = pthread_join(ids[i], (void**)&res)) != 0) {
-            char* buf = strerror(code);
-            fprintf(stderr, "%d: joining: %s\n", i, buf);
+            fprintf(stderr, "%d: joining: %s\n", i, strerror(code));
             flag = 0;
             continue;
         }
