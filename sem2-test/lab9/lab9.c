@@ -25,7 +25,7 @@ void mutex_lock_checked(pthread_mutex_t *m, sigset_t* old) {
     int rc;
     if ((rc = pthread_mutex_lock(m)) != 0) {
         fprintf(stderr, "Mutex lock failed: %s\n", strerror(rc));
-        pthread_sigmask(SIG_UNBLOCK, &old, NULL);
+        pthread_sigmask(SIG_UNBLOCK, old, NULL);
         pthread_exit(NULL);
     }
 }
@@ -34,7 +34,7 @@ void mutex_unlock_checked(pthread_mutex_t *m, sigset_t* old) {
     int rc;
     if ((rc = pthread_mutex_unlock(m)) != 0) {
         fprintf(stderr, "Mutex unlock failed: %s\n", strerror(rc));
-        pthread_sigmask(SIG_UNBLOCK, &old, NULL);
+        pthread_sigmask(SIG_UNBLOCK, old, NULL);
         pthread_exit(NULL);
     }
 }
@@ -55,7 +55,7 @@ void* calculate(void* param) {
 
         if (j % 1000000 == 0)
         {
-            mutex_lock_checked(&mutex);
+            mutex_lock_checked(&mutex, &old);
             if (j > longest_iteration)
             {
                 longest_iteration = j;
