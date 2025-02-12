@@ -1,2 +1,2 @@
 lab9: lab9.c
-	gcc lab9.c -o lab9 -pthread -Wall
+	gcc -pthread -Wall lab9.c -o lab9 

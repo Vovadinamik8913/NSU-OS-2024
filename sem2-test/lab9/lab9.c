@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 int nthreads;
-volatile int8_t stop_calc = 0;
+int8_t stop_calc = 0;
 int64_t longest_iteration = 0;
 pthread_mutex_t mutex;
 
@@ -21,7 +21,28 @@ void handle_sigint(int sig) {
     stop_calc = 1;
 }
 
+void mutex_lock_checked(pthread_mutex_t *m) {
+    int rc;
+    if ((rc = pthread_mutex_lock(m)) != 0) {
+        fprintf(stderr, "Mutex lock failed: %s\n", strerror(rc));
+        pthread_exit(NULL);
+    }
+}
+
+void mutex_unlock_checked(pthread_mutex_t *m) {
+    int rc;
+    if ((rc = pthread_mutex_unlock(m)) != 0) {
+        fprintf(stderr, "Mutex unlock failed: %s\n", strerror(rc));
+        pthread_exit(NULL);
+    }
+}
+
 void* calculate(void* param) {
+    sigset_t set;
+    sigset_t old;
+    sigemptyset(&set);
+    sigaddset(&set, SIGINT);
+    pthread_sigmask(SIG_BLOCK, &set, &old);
     thread_data* data = (thread_data*)param;
     int64_t i = data->index;
 
@@ -32,7 +53,7 @@ void* calculate(void* param) {
 
         if (j % 1000000 == 0)
         {
-            pthread_mutex_lock(&mutex);
+            mutex_lock_checked(&mutex);
             if (j > longest_iteration)
             {
                 longest_iteration = j;
@@ -40,10 +61,11 @@ void* calculate(void* param) {
             if (longest_iteration <= j && stop_calc)
             {
                 data->iterations = j;
-                pthread_mutex_unlock(&mutex);
+                mutex_unlock_checked(&mutex);
+                pthread_sigprocmask(SIG_UNBLOCK, &old, NULL);
                 pthread_exit(data);
             }
-            pthread_mutex_unlock(&mutex);
+            mutex_unlock_checked(&mutex);
         }
     }
 }
@@ -54,10 +76,15 @@ int main(int argc, char** argv) {
     }
     if (nthreads < 1 || nthreads > 100) {
         fprintf(stderr, "Invalid thread count (1-100)\n");
-        return -1;
+        exit(-1);
     }
     
-    pthread_mutex_init(&mutex, NULL);
+    int rc;
+    if ((rc = pthread_mutex_init(&mutex, NULL)) != 0) {
+        fprintf(stderr, "Mutex unlock failed: %s\n", strerror(rc));
+        exit(-1);
+    }
+
     signal(SIGINT, handle_sigint);
     double pi = 0.0;
     int code;
@@ -81,7 +108,13 @@ int main(int argc, char** argv) {
             char* buf = strerror(code);
             fprintf(stderr, "%d: joining: %s\n", i, buf);
             flag = 0;
+            continue;
         }
+        if (res == NULL) {
+            flag = 0;
+            continue;
+        }
+        
         pi += res->partial_sum;
         printf("Thread %d runs %ld\n", data[i].index, data[i].iterations);
         printf("Thread %d partial sum %.16f\n", data[i].index, data[i].partial_sum);
