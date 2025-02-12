@@ -62,7 +62,7 @@ void* calculate(void* param) {
             {
                 data->iterations = j;
                 mutex_unlock_checked(&mutex);
-                pthread_sigprocmask(SIG_UNBLOCK, &old, NULL);
+                pthread_sigmask(SIG_UNBLOCK, &old, NULL);
                 pthread_exit(data);
             }
             mutex_unlock_checked(&mutex);
