@@ -8,8 +8,10 @@
 
 int nthreads;
 volatile int8_t stop_calc = 0;
-volatile int64_t longest_iteration = 0;
+volatile int8_t isFinished = 0;
+volatile int32_t cnt;
 pthread_barrier_t barrier;
+pthread_mutex_t mutex;
 
 typedef struct {
     int32_t index;
@@ -19,15 +21,6 @@ typedef struct {
 
 void handle_sigint(int sig) {
     stop_calc = 1;
-}
-
-void barrier_wait_checked(pthread_barrier_t *b, sigset_t* old) {
-    int rc = pthread_barrier_wait(b);
-    if (rc != 0 && rc != PTHREAD_BARRIER_SERIAL_THREAD) {
-        fprintf(stderr, "Barrier wait failed: %s\n", strerror(rc));
-        pthread_sigmask(SIG_UNBLOCK, old, NULL);
-        pthread_exit(NULL);
-    }
 }
 
 void* calculate(void* param) {
@@ -45,13 +38,10 @@ void* calculate(void* param) {
         i += nthreads;
 
         if (j % 1000000 == 0) {
-            barrier_wait_checked(&barrier, &old);
-            if (j > longest_iteration) {
-                longest_iteration = j;
-            }
-            if (longest_iteration == j && stop_calc) {
+            int res = pthread_barrier_wait(&barrier);
+            if (stop_calc) {
                 data->iterations = j;
-                printf("Thread %d: runs %ld; sum %.15g\n", data->index, data->iterations, data->partial_sum);
+                pthread_barrier_destroy(&barrier)
                 pthread_sigmask(SIG_UNBLOCK, &old, NULL);
                 pthread_exit(data);
             }
@@ -73,11 +63,10 @@ int main(int argc, char** argv) {
         fprintf(stderr, "Barrier init failed: %s\n", strerror(rc));
         exit(-1);
     }
-
+    cnt = nthreads;
     signal(SIGINT, handle_sigint);
     double pi = 0.0;
     int code;
-    int flag = 1;
     pthread_t* ids = malloc(nthreads * sizeof(pthread_t));
     thread_data* data = malloc(nthreads * sizeof(thread_data));
 
@@ -86,8 +75,7 @@ int main(int argc, char** argv) {
         data[i].index = i;
         if ((code= pthread_create(&ids[i], NULL, calculate, data + i)) != 0) {
             fprintf(stderr, "%d: creating: %s\n", i, strerror(code));
-            flag = 0;
-            break;
+            exit(-1);
         }
         actual_threads++;
     }
@@ -96,21 +84,17 @@ int main(int argc, char** argv) {
     for (int i = 0; i < actual_threads; i++) {
         thread_data* res; 
         pthread_join(ids[i], (void**)&res);
-        if (res == NULL || !flag) {
-            flag = 0;
-            continue;
+        if (res == NULL) {
+            exit(-1);
         }
+        printf("Thread %d: runs %ld; sum %.15g\n", res->index, res->iterations, res->partial_sum);
         pi += res->partial_sum;
     }
 
     free(ids);
     free(data);
     if ((rc = pthread_barrier_destroy(&barrier)) != 0) {
-        fprintf(stderr, "Mutex destroy failed: %s\n", strerror(rc));
-        exit(-1);
-    }
-    
-    if (!flag) {
+        fprintf(stderr, "Barrier destroy failed: %s\n", strerror(rc));
         exit(-1);
     }
 
