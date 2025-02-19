@@ -23,7 +23,7 @@ void handle_sigint(int sig) {
 
 void barrier_wait_checked(pthread_barrier_t *b, sigset_t* old) {
     int rc;
-    if ((rc = pthread_barrier_wait(b)) != 0) {
+    if ((rc = pthread_barrier_wait(&b)) != 0) {
         fprintf(stderr, "Barrier wait failed: %s\n", strerror(rc));
         pthread_sigmask(SIG_UNBLOCK, old, NULL);
         pthread_exit(NULL);
