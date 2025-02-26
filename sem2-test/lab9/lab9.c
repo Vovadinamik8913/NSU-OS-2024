@@ -16,7 +16,7 @@ pthread_mutex_t mutex;
 typedef struct {
     int32_t index;
     double partial_sum;
-    int64_t iterations;
+    uint64_t iterations;
 } thread_data;
 
 void handle_sigint(int sig) {
@@ -57,9 +57,9 @@ void* calculate(void* param) {
     sigaddset(&set, SIGINT);
     pthread_sigmask(SIG_BLOCK, &set, &old);
     thread_data* data = (thread_data*)param;
-    int64_t i = data->index;
+    uint64_t i = data->index;
 
-    for (int64_t j = 0; ; j++) {
+    for (uint64_t j = 0; ; j++) {
         data->partial_sum += 1.0 / (i * 4.0 + 1.0);
         data->partial_sum -= 1.0 / (i * 4.0 + 3.0);
         i += nthreads;
