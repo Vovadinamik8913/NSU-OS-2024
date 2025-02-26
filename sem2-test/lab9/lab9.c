@@ -39,12 +39,23 @@ void* calculate(void* param) {
 
         if (j % 1000000 == 0) {
             int res = pthread_barrier_wait(&barrier);
-            if (stop_calc) {
+            pthread_mutex_lock(&mutex);
+            if (isFinished) {
                 data->iterations = j;
-                pthread_barrier_destroy(&barrier)
+                pthread_mutex_unlock(&mutex);
                 pthread_sigmask(SIG_UNBLOCK, &old, NULL);
                 pthread_exit(data);
             }
+            if (res == 0 || res == PTHREAD_BARRIER_SERIAL_THREAD) {
+                cnt--;
+                if (cnt == 0) {
+                    cnt = nthreads;
+                    if (stop_calc) {
+                        isFinished = 1;
+                    }   
+                }               
+            }
+            pthread_mutex_unlock(&mutex);
         }
     }
 }
