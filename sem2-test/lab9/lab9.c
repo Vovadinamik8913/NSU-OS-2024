@@ -69,6 +69,7 @@ void* calculate(void* param) {
             mutex_lock_checked(&mutex, &old);
             if (isFinished) {
                 data->iterations = j;
+                printf("Thread %d: runs %ld; sum %.15g\n", data->index, data->iterations, data->partial_sum);
                 mutex_unlock_checked(&mutex, &old);
                 pthread_sigmask(SIG_UNBLOCK, &old, NULL);
                 pthread_exit(data);
@@ -125,7 +126,6 @@ int main(int argc, char** argv) {
     for (int i = 0; i < actual_threads; i++) {
         thread_data* res; 
         pthread_join(ids[i], (void**)&res);
-        printf("Thread %d: runs %ld; sum %.15g\n", res->index, res->iterations, res->partial_sum);
         pi += res->partial_sum;
     }
 
