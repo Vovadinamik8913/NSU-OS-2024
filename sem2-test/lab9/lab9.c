@@ -9,7 +9,7 @@
 int nthreads;
 volatile int8_t stop_calc = 0;
 volatile int8_t isFinished = 0;
-volatile int32_t cnt;
+volatile int32_t cnt = 0;
 pthread_barrier_t barrier;
 pthread_mutex_t mutex;
 
@@ -21,6 +21,33 @@ typedef struct {
 
 void handle_sigint(int sig) {
     stop_calc = 1;
+}
+
+void barrier_wait_checked(pthread_barrier_t* b, sigset_t* old) {
+    int res = pthread_barrier_wait(b);
+    if (res != 0 && res != PTHREAD_BARRIER_SERIAL_THREAD) {
+        fprintf(stderr, "Barrier wait failed: %s\n", strerror(res));
+        pthread_sigmask(SIG_UNBLOCK, old, NULL);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void mutex_lock_checked(pthread_mutex_t* m, sigset_t* old) {
+    int res = pthread_mutex_lock(m);
+    if (res != 0) {
+        fprintf(stderr, "Mutex lock failed: %s\n", strerror(res));
+        pthread_sigmask(SIG_UNBLOCK, old, NULL);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void mutex_unlock_checked(pthread_mutex_t* m, sigset_t* old) {
+    int res = pthread_mutex_unlock(m);
+    if (res != 0) {
+        fprintf(stderr, "Mutex unlock failed: %s\n", strerror(res));
+        pthread_sigmask(SIG_UNBLOCK, old, NULL);
+        exit(EXIT_FAILURE);
+    }
 }
 
 void* calculate(void* param) {
@@ -38,24 +65,22 @@ void* calculate(void* param) {
         i += nthreads;
 
         if (j % 1000000 == 0) {
-            int res = pthread_barrier_wait(&barrier);
-            pthread_mutex_lock(&mutex);
+            barrier_wait_checked(&barrier, &old);
+            mutex_lock_checked(&mutex, &old);
             if (isFinished) {
                 data->iterations = j;
-                pthread_mutex_unlock(&mutex);
+                mutex_unlock_checked(&mutex, &old);
                 pthread_sigmask(SIG_UNBLOCK, &old, NULL);
                 pthread_exit(data);
             }
-            if (res == 0 || res == PTHREAD_BARRIER_SERIAL_THREAD) {
-                cnt--;
-                if (cnt == 0) {
-                    cnt = nthreads;
-                    if (stop_calc) {
-                        isFinished = 1;
-                    }   
-                }               
+            cnt++;
+            if (cnt == nthreads) {
+                cnt = 0;
+                if (stop_calc) {
+                    isFinished = 1;
+                }   
             }
-            pthread_mutex_unlock(&mutex);
+            mutex_unlock_checked(&mutex, &old);
         }
     }
 }
@@ -66,15 +91,20 @@ int main(int argc, char** argv) {
     }
     if (nthreads < 1 || nthreads > 100) {
         fprintf(stderr, "Invalid thread count (1-100)\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
     
     int rc;
     if ((rc = pthread_barrier_init(&barrier, NULL, nthreads)) != 0) {
         fprintf(stderr, "Barrier init failed: %s\n", strerror(rc));
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
-    cnt = nthreads;
+
+    if ((rc = pthread_mutex_init(&mutex, NULL)) != 0) {
+        fprintf(stderr, "Mutex init failed: %s\n", strerror(rc));
+        exit(EXIT_FAILURE);
+    }
+
     signal(SIGINT, handle_sigint);
     double pi = 0.0;
     int code;
@@ -86,7 +116,7 @@ int main(int argc, char** argv) {
         data[i].index = i;
         if ((code= pthread_create(&ids[i], NULL, calculate, data + i)) != 0) {
             fprintf(stderr, "%d: creating: %s\n", i, strerror(code));
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
         actual_threads++;
     }
@@ -95,9 +125,6 @@ int main(int argc, char** argv) {
     for (int i = 0; i < actual_threads; i++) {
         thread_data* res; 
         pthread_join(ids[i], (void**)&res);
-        if (res == NULL) {
-            exit(-1);
-        }
         printf("Thread %d: runs %ld; sum %.15g\n", res->index, res->iterations, res->partial_sum);
         pi += res->partial_sum;
     }
@@ -106,11 +133,16 @@ int main(int argc, char** argv) {
     free(data);
     if ((rc = pthread_barrier_destroy(&barrier)) != 0) {
         fprintf(stderr, "Barrier destroy failed: %s\n", strerror(rc));
-        exit(-1);
+        exit(EXIT_FAILURE);
+    }
+
+    if ((rc = pthread_mutex_destroy(&mutex)) != 0) {
+        fprintf(stderr, "Mutex destroy failed: %s\n", strerror(rc));
+        exit(EXIT_FAILURE);
     }
 
     pi = pi * 4.0;
     printf("pi done - %.15g \n", pi);  ;
 
-    exit(0);
+    exit(EXIT_SUCCESS);
 }
