@@ -69,7 +69,7 @@ void* calculate(void* param) {
             mutex_lock_checked(&mutex, &old);
             if (isFinished) {
                 data->iterations = j;
-                printf("Thread %d: runs %ld; sum %.15g\n", data->index, data->iterations, data->partial_sum);
+                printf("Thread %d: runs %llu; sum %.15g\n", data->index, data->iterations, data->partial_sum);
                 mutex_unlock_checked(&mutex, &old);
                 pthread_sigmask(SIG_UNBLOCK, &old, NULL);
                 pthread_exit(data);
